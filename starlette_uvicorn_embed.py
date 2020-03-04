@@ -72,8 +72,8 @@ def bkapp(doc):
 
     doc.theme = Theme(filename="theme.yaml")
 
-# Starlette endpoints (similar to)
-# Flask's @app.route:
+# Starlette endpoints (similar to
+# Flask's @app.route):
 async def homepage(request):
     bokeh_page_url = request.url_for('bokeh_page_url')
     return HTMLResponse('<html><body><h1>Hello!</h1><p>Click <a href="%s">here</a> to go to a Bokeh chart</p></body></html>' % bokeh_page_url)
@@ -107,4 +107,3 @@ app = Starlette(debug=False, routes=[
     Route('/', endpoint=homepage, name='homepage_url'),
     Route('/bokeh', endpoint=serve_bokeh_plot, name='bokeh_page_url')
 ])
-
