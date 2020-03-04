@@ -72,6 +72,7 @@ def bkapp(doc):
 
     doc.theme = Theme(filename="theme.yaml")
 
+
 # Starlette endpoints (similar to
 # Flask's @app.route):
 async def homepage(request):
@@ -87,6 +88,7 @@ async def serve_bokeh_plot(request):
                                                     }
                                     )
 
+
 # Bokeh Server configuration and startup:
 #
 # To get Gunicorn/Uvicorn's multi-worker
@@ -101,6 +103,7 @@ bokeh_http.add_sockets(socket)
 
 bokeh_server = BaseServer(IOLoop.current(), bokeh_tornado, bokeh_http)
 bokeh_server.start()
+
 
 # Starlette App creation
 app = Starlette(debug=False, routes=[
