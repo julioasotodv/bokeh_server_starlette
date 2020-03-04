@@ -1,3 +1,3 @@
 #!/bin/sh
 
-uvicorn --loop=uvloop starlette_server:app
+gunicorn -w 2 -k uvicorn.workers.UvicornWorker starlette_uvicorn_embed:app
