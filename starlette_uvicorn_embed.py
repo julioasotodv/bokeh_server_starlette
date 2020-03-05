@@ -3,6 +3,8 @@ try:
 except ImportError:
     raise RuntimeError("This example requries Python3 / asyncio")
 
+import socket
+
 # Bokeh plotting imports
 from bokeh.layouts import column
 from bokeh.models import ColumnDataSource, Slider
@@ -16,7 +18,10 @@ from bokeh.application.handlers import FunctionHandler
 from bokeh.embed import server_document
 from bokeh.server.server import BaseServer
 from bokeh.server.tornado import BokehTornado
-from bokeh.server.util import bind_sockets
+#from bokeh.server.util import bind_sockets
+
+# Panel imports
+#from panel import Row as pn_row
 
 # Starlette imports
 from starlette.applications import Starlette
@@ -27,6 +32,7 @@ from starlette.templating import Jinja2Templates
 # Tornado imports
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
+from tornado.netutil import bind_sockets
 
 
 if __name__ == '__main__':
@@ -42,8 +48,17 @@ if __name__ == '__main__':
     import sys
     sys.exit()
 
+# Monkey patch for Anaconda, since
+# it is unaware whether the Linux
+# kernel has got SO_REUSEPORT or not...
+socket.SO_REUSEPORT = 15
+
 # Startup ptions for Bokeh Server:
-socket, port = bind_sockets("localhost", 0)
+socket = bind_sockets(8001, 
+                      address="localhost",
+                      reuse_port=True # Unavailable in some platforms, dependes on SO_REUSEPORT being 15
+                     )[0]
+port = socket.getsockname()[1]
 
 # Startup options for Starlette:
 templates = Jinja2Templates(directory='templates')
@@ -69,9 +84,10 @@ def bkapp(doc):
     slider.on_change('value', callback)
 
     doc.add_root(column(slider, plot))
-
     doc.theme = Theme(filename="theme.yaml")
 
+    #row = pn_row(slider, plot)
+    #row.server_doc(doc)
 
 # Starlette endpoints (similar to
 # Flask's @app.route):
@@ -84,7 +100,8 @@ async def serve_bokeh_plot(request):
     return templates.TemplateResponse('embed.html', {'request': request,
                                                      'script': script, 
                                                      'framework':('Starlette running on port %d ' % port) +
-                                                                 ('with event loop %s' % str(bokeh_server.io_loop.asyncio_loop))
+                                                                 ('with event loop %s' % str(bokeh_server.io_loop.asyncio_loop))+
+                                                                 ('with id %s' % id(bokeh_server.io_loop.asyncio_loop))
                                                     }
                                     )
 
@@ -99,14 +116,14 @@ bokeh_app = Application(FunctionHandler(bkapp))
 
 bokeh_tornado = BokehTornado({'/bkapp': bokeh_app}, extra_websocket_origins=['localhost:8000'])
 bokeh_http = HTTPServer(bokeh_tornado)
-bokeh_http.add_sockets(socket)
+bokeh_http.add_socket(socket)
 
 bokeh_server = BaseServer(IOLoop.current(), bokeh_tornado, bokeh_http)
 bokeh_server.start()
 
 
 # Starlette App creation
-app = Starlette(debug=False, routes=[
+app = Starlette(debug=True, routes=[
     Route('/', endpoint=homepage, name='homepage_url'),
     Route('/bokeh', endpoint=serve_bokeh_plot, name='bokeh_page_url')
 ])
