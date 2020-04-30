@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+    <head>
+    </head>
+    <body>
+        <button id="boton">Holaaa</button>
+        <script src="https://code.jquery.com/jquery-3.5.0.min.js"></script>
+        <script>
+        $(document).ready(function(){
+            $("#boton").click(function(){
+                $.get("{{ bokeh_page_url }}", function( data ){
+                //$("html").html(data);
+                document.open(); 
+                document.write(data); 
+                document.close();
+                history.pushState("cosa", "titulito", "{{ bokeh_page_url }}")
+                });
+            });
+        });
+        </script>
+    </body>
+</html>

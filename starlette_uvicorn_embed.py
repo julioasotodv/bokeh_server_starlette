@@ -7,7 +7,7 @@ import socket
 
 # Bokeh plotting imports
 from bokeh.layouts import column
-from bokeh.models import ColumnDataSource, Slider
+from bokeh.models import ColumnDataSource, Slider, Paragraph
 from bokeh.plotting import figure
 from bokeh.sampledata.sea_surface_temperature import sea_surface_temperature
 from bokeh.themes import Theme
@@ -21,7 +21,8 @@ from bokeh.server.tornado import BokehTornado
 #from bokeh.server.util import bind_sockets
 
 # Panel imports
-#from panel import Row as pn_row
+import param
+import panel as pn
 
 # Starlette imports
 from starlette.applications import Starlette
@@ -48,15 +49,21 @@ if __name__ == '__main__':
     import sys
     sys.exit()
 
+# Get ip in network:
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.connect(("192.168.1.1", 80))
+ip = s.getsockname()[0]
+s.close()
+
 # Monkey patch for Anaconda, since
 # it is unaware whether the Linux
 # kernel has got SO_REUSEPORT or not...
-socket.SO_REUSEPORT = 15
+#socket.SO_REUSEPORT = 15
 
-# Startup ptions for Bokeh Server:
+# Startup options for Bokeh Server:
 socket = bind_sockets(8001, 
-                      address="localhost",
-                      reuse_port=True # Unavailable in some platforms, dependes on SO_REUSEPORT being 15
+                      address="",
+                      #reuse_port=True # Unavailable in some platforms, dependes on SO_REUSEPORT being 15
                      )[0]
 port = socket.getsockname()[1]
 
@@ -66,6 +73,8 @@ templates = Jinja2Templates(directory='templates')
 
 # Bokeh Applications:
 def bkapp(doc):
+    import time
+    time.sleep(5)
     df = sea_surface_temperature.copy()
     source = ColumnDataSource(data=df)
 
@@ -78,25 +87,30 @@ def bkapp(doc):
             data = df
         else:
             data = df.rolling('{0}D'.format(new)).mean()
-        source.data = ColumnDataSource(data=data).data
+        source.data = data
 
     slider = Slider(start=0, end=30, value=0, step=1, title="Smoothing by N Days")
     slider.on_change('value', callback)
 
-    doc.add_root(column(slider, plot))
+    paragraph = Paragraph(text="IOloop's id: %s" % str(id(bokeh_server.io_loop.asyncio_loop)))
+
+    #doc.add_root(column(slider, plot, paragraph))
     doc.theme = Theme(filename="theme.yaml")
 
-    #row = pn_row(slider, plot)
-    #row.server_doc(doc)
+    row = pn.Row(slider, plot)
+    row.server_doc(doc)
 
 # Starlette endpoints (similar to
 # Flask's @app.route):
 async def homepage(request):
     bokeh_page_url = request.url_for('bokeh_page_url')
-    return HTMLResponse('<html><body><h1>Hello!</h1><p>Click <a href="%s">here</a> to go to a Bokeh chart</p></body></html>' % bokeh_page_url)
+    return templates.TemplateResponse("start.html", 
+                                     {"request": request,
+                                      "bokeh_page_url": bokeh_page_url}
+                                     )
 
 async def serve_bokeh_plot(request):
-    script = server_document('http://localhost:%d/bkapp' % port)
+    script = server_document('http://%s:%d/bkapp' % (request.url.hostname, port))
     return templates.TemplateResponse('embed.html', {'request': request,
                                                      'script': script, 
                                                      'framework':('Starlette running on port %d ' % port) +
@@ -114,7 +128,7 @@ async def serve_bokeh_plot(request):
 # https://github.com/bokeh/bokeh/blob/master/examples/howto/server_embed/flask_gunicorn_embed.py
 bokeh_app = Application(FunctionHandler(bkapp))
 
-bokeh_tornado = BokehTornado({'/bkapp': bokeh_app}, extra_websocket_origins=['localhost:8000'])
+bokeh_tornado = BokehTornado({'/bkapp': bokeh_app}, extra_websocket_origins=["localhost:8000", '%s:8000' % (ip)])
 bokeh_http = HTTPServer(bokeh_tornado)
 bokeh_http.add_socket(socket)
 
