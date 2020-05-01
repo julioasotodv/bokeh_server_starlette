@@ -1,0 +1,17 @@
+{% block head %}
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="description" content="" />
+    <meta name="author" content="" />
+    <title>Mi Dashboard</title>
+
+    <!-- Custom style for this template -->
+    <link href="/static_assets/css/styles.css" rel="stylesheet" />
+
+    {{ bokeh_css | indent(8) if bokeh_css }}
+    
+    <!-- Font Awesome -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/js/all.min.js" crossorigin="anonymous"></script>
+    
+{% endblock %}

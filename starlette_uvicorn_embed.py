@@ -13,6 +13,7 @@ from bokeh.sampledata.sea_surface_temperature import sea_surface_temperature
 from bokeh.themes import Theme
 
 # Bokeh Server-y imports
+import bokeh
 from bokeh.application import Application
 from bokeh.application.handlers import FunctionHandler
 from bokeh.embed import server_document
@@ -26,14 +27,18 @@ import panel as pn
 
 # Starlette imports
 from starlette.applications import Starlette
-from starlette.responses import HTMLResponse
-from starlette.routing import Route
+from starlette.responses import HTMLResponse, RedirectResponse
+from starlette.routing import Route, Mount
 from starlette.templating import Jinja2Templates
+from starlette.staticfiles import StaticFiles
 
 # Tornado imports
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 from tornado.netutil import bind_sockets
+from tornado.web import Application as TornadoApplication, StaticFileHandler
+
+import jinja2
 
 
 if __name__ == '__main__':
@@ -72,9 +77,14 @@ templates = Jinja2Templates(directory='templates')
 
 
 # Bokeh Applications:
-def bkapp(doc):
+def bkapp(curdoc):
     import time
     time.sleep(5)
+
+    a = jinja2.FileSystemLoader(searchpath="templates/")
+    curdoc.template = jinja2.Environment(loader=a).get_template("index.html")
+
+
     df = sea_surface_temperature.copy()
     source = ColumnDataSource(data=df)
 
@@ -95,10 +105,14 @@ def bkapp(doc):
     paragraph = Paragraph(text="IOloop's id: %s" % str(id(bokeh_server.io_loop.asyncio_loop)))
 
     #doc.add_root(column(slider, plot, paragraph))
-    doc.theme = Theme(filename="theme.yaml")
+    curdoc.theme = Theme(filename="theme.yaml")
 
-    row = pn.Row(slider, plot)
-    row.server_doc(doc)
+    row = pn.Row(slider, plot, name="chart_1")
+    row.server_doc(curdoc)
+
+    other_figure = figure(title="Jajaja")
+    other_figure.scatter(x=[1,2,3], y=[4,5,6])
+    pn.Pane(other_figure, name="chart_2").server_doc(curdoc)
 
 # Starlette endpoints (similar to
 # Flask's @app.route):
@@ -109,15 +123,11 @@ async def homepage(request):
                                       "bokeh_page_url": bokeh_page_url}
                                      )
 
-async def serve_bokeh_plot(request):
-    script = server_document('http://%s:%d/bkapp' % (request.url.hostname, port))
-    return templates.TemplateResponse('embed.html', {'request': request,
-                                                     'script': script, 
-                                                     'framework':('Starlette running on port %d ' % port) +
-                                                                 ('with event loop %s' % str(bokeh_server.io_loop.asyncio_loop))+
-                                                                 ('with id %s' % id(bokeh_server.io_loop.asyncio_loop))
-                                                    }
-                                    )
+async def redirect_bokeh(request):
+    return templates.TemplateResponse("redirect_to_bokeh_server.html",
+                                      {"request": request,
+                                      "bokeh_page_url": "http://%s:%s" % (request.url.hostname, 8001)}
+                                      )
 
 
 # Bokeh Server configuration and startup:
@@ -128,16 +138,32 @@ async def serve_bokeh_plot(request):
 # https://github.com/bokeh/bokeh/blob/master/examples/howto/server_embed/flask_gunicorn_embed.py
 bokeh_app = Application(FunctionHandler(bkapp))
 
-bokeh_tornado = BokehTornado({'/bkapp': bokeh_app}, extra_websocket_origins=["localhost:8000", '%s:8000' % (ip)])
+bokeh_tornado = BokehTornado({'/bkapp': bokeh_app},
+                              extra_patterns=[(r'/static_assets/(.*)', StaticFileHandler, {'path': "static"})],
+                              extra_websocket_origins=["localhost:8000", "localhost:8001", '%s:8001' % (ip)],
+                              include_headers="adsadsadad"
+                              #static_path="static/"
+                              )
+
+#print(bokeh_tornado._applications["/bkapp"].application.handlers[0].set_header("access-control-allow-origin", "*"))
+
 bokeh_http = HTTPServer(bokeh_tornado)
+
+print(dir(bokeh_http))
+
 bokeh_http.add_socket(socket)
 
 bokeh_server = BaseServer(IOLoop.current(), bokeh_tornado, bokeh_http)
 bokeh_server.start()
 
+from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware import Middleware
+
 
 # Starlette App creation
 app = Starlette(debug=True, routes=[
     Route('/', endpoint=homepage, name='homepage_url'),
-    Route('/bokeh', endpoint=serve_bokeh_plot, name='bokeh_page_url')
-])
+    Mount('/static', StaticFiles(directory='static'), name='static'),
+    Route('/bokeh', endpoint=redirect_bokeh, name='bokeh_page_url')
+    ]
+)
