@@ -83,6 +83,7 @@ def bkapp(curdoc):
 
     a = jinja2.FileSystemLoader(searchpath="templates/")
     curdoc.template = jinja2.Environment(loader=a).get_template("index.html")
+    curdoc.template_variables["rendered_by_bokeh_server"] = True
 
 
     df = sea_surface_temperature.copy()
@@ -108,10 +109,12 @@ def bkapp(curdoc):
     curdoc.theme = Theme(filename="theme.yaml")
 
     row = pn.Row(slider, plot, name="chart_1")
+    row.sizing_mode = "stretch_both"
     row.server_doc(curdoc)
 
     other_figure = figure(title="Jajaja")
     other_figure.scatter(x=[1,2,3], y=[4,5,6])
+    other_figure.sizing_mode = "stretch_both"
     pn.Pane(other_figure, name="chart_2").server_doc(curdoc)
 
 # Starlette endpoints (similar to
@@ -119,14 +122,14 @@ def bkapp(curdoc):
 async def homepage(request):
     bokeh_page_url = request.url_for('bokeh_page_url')
     return templates.TemplateResponse("start.html", 
-                                     {"request": request,
-                                      "bokeh_page_url": bokeh_page_url}
+                                     {"request": request}
                                      )
 
 async def redirect_bokeh(request):
     return templates.TemplateResponse("redirect_to_bokeh_server.html",
                                       {"request": request,
-                                      "bokeh_page_url": "http://%s:%s" % (request.url.hostname, 8001)}
+                                      "bokeh_page_url": "http://%s:%s" % (request.url.hostname, 8001),
+                                      "rendered_by_bokeh_server": False}
                                       )
 
 
@@ -136,21 +139,15 @@ async def redirect_bokeh(request):
 # working, we need to create the Bokeh Server
 # using the low level APIs. Inspired by
 # https://github.com/bokeh/bokeh/blob/master/examples/howto/server_embed/flask_gunicorn_embed.py
+
 bokeh_app = Application(FunctionHandler(bkapp))
 
 bokeh_tornado = BokehTornado({'/bkapp': bokeh_app},
                               extra_patterns=[(r'/static_assets/(.*)', StaticFileHandler, {'path': "static"})],
                               extra_websocket_origins=["localhost:8000", "localhost:8001", '%s:8001' % (ip)],
-                              include_headers="adsadsadad"
-                              #static_path="static/"
                               )
 
-#print(bokeh_tornado._applications["/bkapp"].application.handlers[0].set_header("access-control-allow-origin", "*"))
-
 bokeh_http = HTTPServer(bokeh_tornado)
-
-print(dir(bokeh_http))
-
 bokeh_http.add_socket(socket)
 
 bokeh_server = BaseServer(IOLoop.current(), bokeh_tornado, bokeh_http)
