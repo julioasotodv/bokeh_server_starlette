@@ -1,7 +1,12 @@
 {% from macros import embed %}
 
 {% block main_content %}
-    <p id="cargando" class="loading-text" style="color:blanchedalmond; font-size: 30pt;">Cargando...</p>
+    <div id="cargando" class=loading-div>
+    <p class=loading-text>Loading...</p>
+    <div class="spinner-border text-primary" role="status">
+        <span class="sr-only">Loading...</span>
+    </div>
+    </div>
     <div id="loading-screen" class="loading"></div>
     <div class="container-fluid">
         <h1 class="mt-4">Dashboard</h1>

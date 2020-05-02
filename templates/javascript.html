@@ -38,13 +38,18 @@
 
     <!-- Change default sidebar behavior based on resizing -->
     <script>
+        var lastWindowSize = viewSize();
+
         $(document).ready(function(){
             $(window).resize(function(){
-                if ((viewSize() !== "lg") && (viewSize() !== "xl")){
+                if ((viewSize() !== "lg") && (viewSize() !== "xl")) { // If now small:
                     $("body").removeClass("sb-sidenav-toggled");
-                } else {
-                    $("body").addClass("sb-sidenav-toggled");
+                } else {                                              // If now large
+                    if ((lastWindowSize !== "lg") && (lastWindowSize !== "xl")) { // Before small:
+                        $("body").addClass("sb-sidenav-toggled");
+                    } 
                 }
+                lastWindowSize = viewSize();
             });
         });
     </script>

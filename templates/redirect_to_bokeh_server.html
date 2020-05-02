@@ -4,9 +4,14 @@
         {% include "head.html" %}
     </head>
     <body>
-        <p id="cargando" class="loading-text" style="color:blanchedalmond; font-size: 30pt;">Cargando...</p>
+        <div class="loading-div">
+            <p class="loading-text">Loading...</p>
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
+        </div>
         <div id="loading-screen" class="loading"></div>
-        <script src="https://code.jquery.com/jquery-3.5.0.min.js"></script>
+        <script src="https://code.jquery.com/jquery-3.4.1.min.js" crossorigin="anonymous"></script>
         <script>
         $(document).ready(function(){
             window.location.replace("{{ bokeh_page_url }}");
