@@ -41,18 +41,18 @@ from tornado.web import StaticFileHandler
 from jinja2 import Environment, FileSystemLoader
 
 
-if __name__ == '__main__':
-    print('This script is intended to be run with gunicorn/uvicorn. e.g.')
-    print()
-    print('    uvicorn --workers=4 starlette_uvicorn_embed:app')
-    print()
-    print('or')
-    print()
-    print('    gunicorn -w 4 -k uvicorn.workers.UvicornWorker starlette_uvicorn_embed:app')
-    print()
-    print('will start the app on four processes')
-    import sys
-    sys.exit()
+#if __name__ == '__main__':
+#    print('This script is intended to be run with gunicorn/uvicorn. e.g.')
+#    print()
+#    print('    uvicorn --workers=4 starlette_uvicorn_embed:app')
+#    print()
+#    print('or')
+#    print()
+#    print('    gunicorn -w 4 -k uvicorn.workers.UvicornWorker starlette_uvicorn_embed:app')
+#    print()
+#    print('will start the app on four processes')
+#    import sys
+#    sys.exit()
 
 # Get ip in network:
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -167,3 +167,9 @@ app = Starlette(debug=True, routes=[
     Route('/bokeh', endpoint=redirect_bokeh, name='bokeh_page_url')
     ]
 )
+
+## Only used if running Uvicorn programatically
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("starlette_uvicorn_embed:app", host="localhost", port=6969, log_level="info")
+
